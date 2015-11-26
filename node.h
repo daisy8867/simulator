@@ -9,6 +9,6 @@ public:
 	atomic<int> num_cpu;
 	atomic<int> io_bw;
 	atomic<int> io_gpu; // #gpu containers issue io
-	Node(int gpu, int cpu, int io);
+	Node(int gpu, int cpu);
 };
 #endif
