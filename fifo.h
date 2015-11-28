@@ -6,7 +6,7 @@
 #include "launchContainer.h"
 #include <boost/thread.hpp>
 #include <boost/ref.hpp>
-using namespace std;
-
-void fifo(vector<App> apps, Node& n1, const vector<Model>& model);
+extern atomic<int> io_mutex;
+void fifo(vector<App>& apps, Node& n1, const vector<Model>& model);
+void fair(set<App, function<bool (const App&, const App&)> >& apps, Node& n1, const vector<Model>& model);
 #endif

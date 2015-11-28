@@ -18,6 +18,14 @@ int main() {
 	Node n1(m, n);
 	// get app from conf file
 	vector<App> apps;
+	function<bool (const App&, const App&)> cmpApp = [&](const App& a, const App& b) {
+		if(a.num_gpu != b.num_gpu) return a.num_gpu < b.num_gpu;
+		else if (a.num_cpu != b.num_cpu) return a.num_cpu < b.num_cpu;
+		else if (a.num_task != b.num_task) return a.num_task < b.num_task;
+		else if (a.io_rate != b.io_rate) return a.io_rate > b.io_rate;
+		else if (a.seq_time != b.seq_time) return a.seq_time > b.seq_time;
+	};
+	set<App, decltype(cmpApp)> appset(cmpApp);
 	string app_name;
 	string appid;
 //	timeval tm;
@@ -30,10 +38,18 @@ int main() {
 //		appid = app_name + to_string(tm.tv_sec) + to_string(tm.tv_usec);
 		App a = App::createApp(app_name, n);
 		apps.emplace_back(a);
+		appset.insert(a);
 		string cmd = "mkdir " + app_name;
 		system(cmd.c_str());
 	}
 	af.close();
+	cout << "apps to schedule" << endl;
+	for(App t : apps) {
+		cout << t.app_name << " " << t.num_task << " " << t.num_gpu << " " << t.num_cpu << endl;
+	}
+	for(App t : appset) {
+		cout << t.app_name << " " << t.num_task << " " << t.num_gpu << " " << t.num_cpu << endl;
+	}
 
 	// get io model
 	sLine = "model";
@@ -50,6 +66,7 @@ int main() {
 	sort(model.begin(), model.end(), cmp);
 
 	// schedule with fifo
-	fifo(apps, n1, model);
+//	fifo(apps, n1, model);
+	fair(appset, n1, model);
 	return 0;
 }

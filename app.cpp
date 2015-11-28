@@ -1,6 +1,8 @@
 #include "app.h"
 App::App() {
 	app_name = "";
+	num_gpu = 0;
+	num_cpu = 0;
 }
 App::App(int io, double gpu, double seq, double ss, int num) {
 	app_name = "";
@@ -9,6 +11,8 @@ App::App(int io, double gpu, double seq, double ss, int num) {
 	seq_time = seq;
 	splitsize = ss;
 	num_task = num;	
+	num_gpu = 0;
+	num_cpu = 0;
 //	atomic_init(&num_task, num);
 }
 
@@ -19,6 +23,8 @@ App::App(const App& a) {
 	seq_time = a.seq_time;
 	splitsize = a.splitsize;
 	num_task = a.num_task;
+	num_gpu = a.num_gpu;
+	num_cpu = a.num_cpu;
 //	atomic_init(&num_task, atomic_load(&a.num_task));
 }
 
@@ -50,26 +56,26 @@ KNN::KNN(int num) {
 
 Kmeans::Kmeans(int num) {
 	app_name = "kmeans";
-	io_rate = 61213;
-	gpu_time = 56328;
-	seq_time = 4936209;
+	io_rate = 61212;
+	gpu_time = 1570;
+	seq_time = 206342;
 	splitsize = 1048576;
 	num_task = num;
 }
 
 RS1::RS1(int num) {
 	app_name = "rs1";
-	io_rate = 1048576;
+	io_rate = 0;
 	gpu_time = 194598;
 	seq_time = 7930809;
-	splitsize = 1048576;
+	splitsize = 0;
 	num_task = num;
 }
 
 NB::NB(int num) {
 	app_name = "nb";
 	io_rate = 55512;
-	gpu_time = 16149;
+	gpu_time = 16049;
 	seq_time = 545599;
 	splitsize = 1048576;
 	num_task = num;
@@ -77,9 +83,9 @@ NB::NB(int num) {
 
 BP::BP(int num) {
 	app_name = "bp";
-	io_rate = 1048576;
-	gpu_time = 23596;
+	io_rate = 0;
+	gpu_time = 23096;
 	seq_time = 613282;
-	splitsize = 1048576;
+	splitsize = 0;
 	num_task = num;
 }

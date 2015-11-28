@@ -1,6 +1,7 @@
 #include "launchContainer.h"
 
-void launch_container(App& a, Node& n, int res, string& logfile, const vector<Model>& model) {
+void launch_container(App a, Node& n, int res, string& logfile, const vector<Model>& model, atomic<int>& io_mutex) {
+	atomic_fetch_sub(&io_mutex, 1);
 	string file = a.app_name + "/" + logfile;
 	cout << "log to " << file << endl;
 	FILE *f = fopen(file.c_str(), "w");
@@ -19,6 +20,7 @@ void launch_container(App& a, Node& n, int res, string& logfile, const vector<Mo
 	if(res) {//cpu container
 		con_io = a.splitsize * 1000 / a.seq_time;
 		atomic_fetch_add(&n.io_bw, con_io);
+		atomic_fetch_add(&n.io_rate, con_io);
 		if(con_io > 7168) {
 			atomic_fetch_add(&n.io_gpu, 1);
 		}
@@ -28,6 +30,7 @@ void launch_container(App& a, Node& n, int res, string& logfile, const vector<Mo
 //			fprintf(f, "cpu time: %d secs %d msec.\n", tm.tv_sec, tm.tv_usec);
 		}		
 		atomic_fetch_sub(&n.io_bw, con_io);
+		atomic_fetch_sub(&n.io_rate, con_io);
 		if(con_io > 7168) {
 			atomic_fetch_sub(&n.io_gpu, 1);
 		}
@@ -41,18 +44,27 @@ void launch_container(App& a, Node& n, int res, string& logfile, const vector<Mo
 		if(con_io > 7168) {
 			atomic_fetch_add(&n.io_gpu, 1);
 		}
+//		if(a.app_name == "kmeans" || a.app_name == "nb") {
+//	        boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_interval2));
+//		}
 		for(int get_data = 0; get_data < a.splitsize; i++) {
-			// sleep and wait for other threads issue io to simulate io contension, 
-			// sleep statements in other place is to sync time interval with this.
-        	boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_interval * 0.95));
 			int cur_io = atomic_load(&n.io_bw);
 			Model state(atomic_load(&n.io_gpu) - 1, cur_io, 0);
 			auto lb = lower_bound(model.begin(), model.end(), state, cmp);
-//			fprintf(f, "current io: %d, delay factor: %lf\n", cur_io, lb->delayFactor);
+			double delay = min((double)state.coRunner + 1, lb->delayFactor);
+			int delta_io = (int)((double)con_io / delay);
+			atomic_fetch_add(&n.io_rate, delta_io);
+//			fprintf(f, "current io: %d, delay factor: %lf, sleep factor: %lf\n", cur_io, delay, factor);
 //			fprintf(f, "currnet state: %d %d\n", state.coRunner, state.AggregateIO);
-			get_data += (int)((double)con_io / lb->delayFactor);
+			get_data += delta_io; 
 //			gettimeofday(&tm, 0);
 //			fprintf(f, "gpu reading time: %d secs %d msec. current aggregate io: %d, current io_gpu: %d \n", tm.tv_sec, tm.tv_usec, atomic_load(&n.io_bw), atomic_load(&n.io_gpu));
+			// sleep and wait for other threads issue io to simulate io contension, 
+			// sleep statements in other place is to sync time interval with this.
+			// TODO: the ori should be that for knn running with more than one gpu coRunner, the factor should be smaller
+			double factor = (a.app_name == "knn" && !atomic_load(&n.num_gpu)) ? 0.95 : 1.27;
+        	boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_interval * factor));
+			atomic_fetch_sub(&n.io_rate, delta_io);
 		}
 		atomic_fetch_sub(&n.io_bw, con_io);
 		gettimeofday(&tm, 0);
@@ -72,4 +84,5 @@ void launch_container(App& a, Node& n, int res, string& logfile, const vector<Mo
 	gettimeofday(&tm, 0);
 	fprintf(f, "end time: %d%06d usec.\n", tm.tv_sec, tm.tv_usec);
 	fclose(f);
+	atomic_fetch_add(&io_mutex, 1);
 }

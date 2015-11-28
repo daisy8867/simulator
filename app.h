@@ -12,6 +12,8 @@ public:
 	double seq_time;
 	double splitsize;
 	int num_task;
+	int num_gpu;
+	int num_cpu;
 //	atomic<int> num_task;
 	App(int io, double gpu, double seq, double ss, int num);
 	App(const App& a);
