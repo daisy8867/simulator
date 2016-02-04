@@ -7,6 +7,7 @@ void launch_container(App a, Node& n, int res, string& logfile, const vector<Mod
 	FILE *f = fopen(file.c_str(), "w");
 	timeval tm;
 	gettimeofday(&tm, 0);
+//	cout << "start time " << tm.tv_sec << tm.tv_usec << " with resource " << res;
 	fprintf(f, "start time: %d%06d usec.\n", tm.tv_sec, tm.tv_usec);
 	int i = 0, con_io;
 	auto cmp = [&] (const Model& m1, const Model& m2) {
@@ -18,12 +19,9 @@ void launch_container(App a, Node& n, int res, string& logfile, const vector<Mod
 		}
 	};
 	if(res) {//cpu container
-		con_io = a.splitsize * 1000 / a.seq_time;
-		atomic_fetch_add(&n.io_bw, con_io);
+		con_io = 1048576000 / a.seq_time;
+//		cout << "cur io is: " << con_io << endl;
 		atomic_fetch_add(&n.io_rate, con_io);
-		if(con_io > 7168) {
-			atomic_fetch_add(&n.io_gpu, 1);
-		}
 		for(i = 0; i < a.seq_time; i += 1000) {
         	boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_interval));
 //			gettimeofday(&tm, 0);
@@ -32,7 +30,7 @@ void launch_container(App a, Node& n, int res, string& logfile, const vector<Mod
 		atomic_fetch_sub(&n.io_bw, con_io);
 		atomic_fetch_sub(&n.io_rate, con_io);
 		if(con_io > 7168) {
-			atomic_fetch_sub(&n.io_gpu, 1);
+			atomic_fetch_sub(&n.io_cpu, 1);
 		}
 		gettimeofday(&tm, 0);
 		fprintf(f, "cpu end time: %d%06d usec.\n", tm.tv_sec, tm.tv_usec);
@@ -40,29 +38,34 @@ void launch_container(App a, Node& n, int res, string& logfile, const vector<Mod
 	}
 	else {
 		con_io = a.io_rate;
-		atomic_fetch_add(&n.io_bw, con_io);
-		if(con_io > 7168) {
-			atomic_fetch_add(&n.io_gpu, 1);
-		}
+//		cout << "cur io is: " << con_io << endl;
 //		if(a.app_name == "kmeans" || a.app_name == "nb") {
 //	        boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_interval2));
 //		}
 		for(int get_data = 0; get_data < a.splitsize; i++) {
 			int cur_io = atomic_load(&n.io_bw);
-			Model state(atomic_load(&n.io_gpu) - 1, cur_io, 0);
+			Model state(atomic_load(&n.io_gpu) + atomic_load(&n.io_cpu) - 1, cur_io, 0);
 			auto lb = lower_bound(model.begin(), model.end(), state, cmp);
 			double delay = min((double)state.coRunner + 1, lb->delayFactor);
-			int delta_io = (int)((double)con_io / delay);
+			int delta_io= (int)((double)con_io / delay);
+			get_data += delta_io;
 			atomic_fetch_add(&n.io_rate, delta_io);
 //			fprintf(f, "current io: %d, delay factor: %lf, sleep factor: %lf\n", cur_io, delay, factor);
 //			fprintf(f, "currnet state: %d %d\n", state.coRunner, state.AggregateIO);
-			get_data += delta_io; 
 //			gettimeofday(&tm, 0);
 //			fprintf(f, "gpu reading time: %d secs %d msec. current aggregate io: %d, current io_gpu: %d \n", tm.tv_sec, tm.tv_usec, atomic_load(&n.io_bw), atomic_load(&n.io_gpu));
 			// sleep and wait for other threads issue io to simulate io contension, 
 			// sleep statements in other place is to sync time interval with this.
-			// TODO: the ori should be that for knn running with more than one gpu coRunner, the factor should be smaller
-			double factor = (a.app_name == "knn" && !atomic_load(&n.num_gpu)) ? 0.95 : 1.27;
+			double factor = 1;
+			// TODO: the intent is that for knn and kmeans2 running with more than one gpu coRunner, the factor should be smaller
+//			if(atomic_load(&n.io_gpu) > 1) {
+//				if (a.app_name == "knn") {
+//					factor = 0.95;
+//				}
+//				else if (a.app_name == "kmeans2") {
+//					factor = 1.0;
+//				}
+//			}
         	boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_interval * factor));
 			atomic_fetch_sub(&n.io_rate, delta_io);
 		}

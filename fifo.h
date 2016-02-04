@@ -9,4 +9,7 @@
 extern atomic<int> io_mutex;
 void fifo(vector<App>& apps, Node& n1, const vector<Model>& model);
 void fair(set<App, function<bool (const App&, const App&)> >& apps, Node& n1, const vector<Model>& model);
+void modelScheduler(vector<App>& apps, Node& n1, const vector<Model>& model);
+void affinityScheduler(vector<App>& apps, Node& n1, const vector<Model>& model);
+void dynamicScheduler(vector<App>& apps, Node& n1, const vector<Model>& model);
 #endif

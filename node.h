@@ -10,6 +10,7 @@ public:
 	atomic<int> io_rate;
 	atomic<int> io_bw;
 	atomic<int> io_gpu; // #gpu containers issue io
+	atomic<int> io_cpu; // #gpu containers issue io
 	Node(int gpu, int cpu);
 };
 #endif
